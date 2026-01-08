@@ -64,6 +64,10 @@
 
     in
     {
+      lib = {
+        inherit mkAmp;
+      };
+
       packages.aarch64-darwin.default = mkAmp "aarch64-darwin" nixpkgs.legacyPackages.aarch64-darwin;
       packages.aarch64-darwin.amp = self.packages.aarch64-darwin.default;
       packages.x86_64-darwin.default = mkAmp "x86_64-darwin" nixpkgs.legacyPackages.x86_64-darwin;
