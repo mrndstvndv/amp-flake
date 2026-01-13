@@ -1,0 +1,124 @@
+name: Update Amp Version
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-amp:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v24
+
+      - name: Fetch latest release version
+        id: fetch-version
+        run: |
+          LATEST_VERSION=$(curl -s https://storage.googleapis.com/amp-public-assets-prod-0/cli/cli-version.txt | tr -d '\n')
+          echo "latest_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+          echo "Latest version: $LATEST_VERSION"
+
+      - name: Extract current version
+        id: current-version
+        run: |
+          CURRENT_VERSION=$(grep -E 'version = ".*";' flake.nix | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $CURRENT_VERSION"
+
+      - name: Compare versions
+        id: compare
+        run: |
+          LATEST="${{ steps.fetch-version.outputs.latest_version }}"
+          CURRENT="${{ steps.current-version.outputs.current_version }}"
+          
+          if [ "$LATEST" = "$CURRENT" ]; then
+            echo "Already up to date"
+            echo "needs_update=false" >> $GITHUB_OUTPUT
+          else
+            echo "New version available: $LATEST"
+            echo "needs_update=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Compute SHA256 for darwin-arm64
+        if: steps.compare.outputs.needs_update == 'true'
+        id: darwin-arm64-hash
+        run: |
+          VERSION="${{ steps.fetch-version.outputs.latest_version }}"
+          HASH=$(nix-prefetch-url --type sha256 "https://storage.googleapis.com/amp-public-assets-prod-0/cli/${VERSION}/amp-darwin-arm64")
+          echo "hash=$HASH" >> $GITHUB_OUTPUT
+          echo "darwin-arm64 hash: $HASH"
+
+      - name: Compute SHA256 for darwin-x64
+        if: steps.compare.outputs.needs_update == 'true'
+        id: darwin-x64-hash
+        run: |
+          VERSION="${{ steps.fetch-version.outputs.latest_version }}"
+          HASH=$(nix-prefetch-url --type sha256 "https://storage.googleapis.com/amp-public-assets-prod-0/cli/${VERSION}/amp-darwin-x64")
+          echo "hash=$HASH" >> $GITHUB_OUTPUT
+          echo "darwin-x64 hash: $HASH"
+
+      - name: Compute SHA256 for linux-arm64
+        if: steps.compare.outputs.needs_update == 'true'
+        id: linux-arm64-hash
+        run: |
+          VERSION="${{ steps.fetch-version.outputs.latest_version }}"
+          HASH=$(nix-prefetch-url --type sha256 "https://storage.googleapis.com/amp-public-assets-prod-0/cli/${VERSION}/amp-linux-arm64")
+          echo "hash=$HASH" >> $GITHUB_OUTPUT
+          echo "linux-arm64 hash: $HASH"
+
+      - name: Compute SHA256 for linux-x64
+        if: steps.compare.outputs.needs_update == 'true'
+        id: linux-x64-hash
+        run: |
+          VERSION="${{ steps.fetch-version.outputs.latest_version }}"
+          HASH=$(nix-prefetch-url --type sha256 "https://storage.googleapis.com/amp-public-assets-prod-0/cli/${VERSION}/amp-linux-x64")
+          echo "hash=$HASH" >> $GITHUB_OUTPUT
+          echo "linux-x64 hash: $HASH"
+
+      - name: Update flake.nix
+        if: steps.compare.outputs.needs_update == 'true'
+        run: |
+          NEW_VERSION="${{ steps.fetch-version.outputs.latest_version }}"
+          DARWIN_ARM64_HASH="${{ steps.darwin-arm64-hash.outputs.hash }}"
+          DARWIN_X64_HASH="${{ steps.darwin-x64-hash.outputs.hash }}"
+          LINUX_ARM64_HASH="${{ steps.linux-arm64-hash.outputs.hash }}"
+          LINUX_X64_HASH="${{ steps.linux-x64-hash.outputs.hash }}"
+          
+          # Update version (line 10)
+          sed -i '10s/version = ".*";/version = "'"$NEW_VERSION"'";/' flake.nix
+          
+          # Update hashes (line-specific based on flake.nix structure)
+          sed -i '17s/sha256 = ".*";/sha256 = "'"$DARWIN_ARM64_HASH"'";/' flake.nix
+          sed -i '21s/sha256 = ".*";/sha256 = "'"$DARWIN_X64_HASH"'";/' flake.nix
+          sed -i '25s/sha256 = ".*";/sha256 = "'"$LINUX_ARM64_HASH"'";/' flake.nix
+          sed -i '29s/sha256 = ".*";/sha256 = "'"$LINUX_X64_HASH"'";/' flake.nix
+          
+          echo "Updated flake.nix with version $NEW_VERSION"
+
+      - name: Verify flake builds
+        if: steps.compare.outputs.needs_update == 'true'
+        run: |
+          nix flake check --no-build
+          nix build .#packages.x86_64-linux.default --dry-run
+          echo "Flake verification passed"
+
+      - name: Commit and push
+        if: steps.compare.outputs.needs_update == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          NEW_VERSION="${{ steps.fetch-version.outputs.latest_version }}"
+          
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add flake.nix
+          git commit -m "chore: update amp to v${NEW_VERSION}"
+          git push

@@ -36,7 +36,7 @@
           inherit version;
 
           src = pkgs.fetchurl {
-            url = "https://storage.googleapis.com/amp-public-assets-prod-0/cli/0.0.1767816090-gfc80fb/amp-${platformInfo.platform}";
+            url = "https://storage.googleapis.com/amp-public-assets-prod-0/cli/${version}/amp-${platformInfo.platform}";
             sha256 = platformInfo.sha256;
           };
 
