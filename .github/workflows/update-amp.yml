@@ -105,8 +105,9 @@ jobs:
       - name: Verify flake builds
         if: steps.compare.outputs.needs_update == 'true'
         run: |
-          nix flake check --no-build
-          nix build .#packages.x86_64-linux.default --dry-run
+          export NIXPKGS_ALLOW_UNFREE=1
+          nix flake check --no-build --impure
+          nix build .#packages.x86_64-linux.default --dry-run --impure
           echo "Flake verification passed"
 
       - name: Commit and push
