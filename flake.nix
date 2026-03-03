@@ -7,26 +7,26 @@
 
   outputs = { self, nixpkgs }:
     let
-      version = "0.0.1772409733-gb80900";
+      version = "0.0.1772496276-ge2fd2b";
 
       mkAmp = system: pkgs:
         let
           platformInfo = {
             "aarch64-darwin" = {
               platform = "darwin-arm64";
-              sha256 = "19s4llasjsp922h3187a8ci6ifjjakmam78jrxhyd7pxb0zs7kli";
+              sha256 = "0lgqiz4czwpb2r2d4ix0rwgg1hd9w2fsn5chy5cig7rmzrkf51hw";
             };
             "x86_64-darwin" = {
               platform = "darwin-x64";
-              sha256 = "0iqk6ghz71wnkw829jgjp1r6ivr0xaax6sv25620mpmscdb016c8";
+              sha256 = "020ccg9w3a8l11pcqr8larybqls99ckwdps35dxd5yx1rzxkh01x";
             };
             "aarch64-linux" = {
               platform = "linux-arm64";
-              sha256 = "18jq6rbz87j3zbkwhvabbvsy49x660675nlh3zl926yiaqb8s7qd";
+              sha256 = "0xbv3g3fc2iyqk9mnawcs6harfqkwvg9bndxfhjg7vzqkjmvccj6";
             };
             "x86_64-linux" = {
               platform = "linux-x64";
-              sha256 = "1cqbm7m3qsc5pcagl868nynk026b93vsw4anmjml2apk1v3qf8h7";
+              sha256 = "0lwplzx2qxqg7i9g2g8yy3q8wx9y5w8izwz95qzmj3p5ch8281gy";
             };
           }.${system};
           isLinux = pkgs.lib.hasSuffix "linux" system;
